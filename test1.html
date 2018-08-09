@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+</head>
+<style>
+	html, body {
+		height: 100%;
+		width: 100%;
+		padding: 0;
+		margin: 0;
+	}
+
+	.bg-div {
+		height: 240px;
+		width: 100%;
+		background: #0F2027;
+		background: linear-gradient(to right, #2C5364, #203A43, #0F2027);
+	}
+
+	canvas {
+		/*border: 1px solid grey;*/
+	}
+</style>
+<body>
+	<div class="bg-div">
+		<canvas></canvas>
+	</div>
+</body>
+<script>
+(function() {
+	var times = new Date().getTime();
+	var pointDistance = 100;//两点的最大距离
+	var arcArr = [];//点的数组
+	var mouseArc = null;
+	var arcCount = 20;
+	var colorList = ['rgba(149, 227, 236, 0.5)', 'rgba(251, 119, 119, 0.5)', 'rgba(108, 245, 213, 0.5)', 'rgba(255, 255, 255, 0.5)'];
+
+	function requestAnimation(fn) {
+		var intervalTime = Math.max(0, 16 - (Date.now() - times));
+		var timer = setTimeout(function() {
+			fn();
+		}, intervalTime);
+		times = Date.now() + intervalTime;
+		return timer;
+	}
+
+	function clearRequestAnimation (timer) {
+		clearTimeout(timer);
+	}
+
+	window.requestAnimationFrame = window.requestAnimationFrame || requestAnimation;
+	window.cancelAnimationFrame = window.cancelAnimationFrame || clearRequestAnimation;
+
+	var bg = document.querySelector('.bg-div');
+	var canvas = document.querySelector('canvas');
+
+	//绘制图像
+	var w = canvas.width = bg.getBoundingClientRect().width;
+	var h = canvas.height = bg.getBoundingClientRect().height;
+	var offset_X = bg.getBoundingClientRect().left;
+	var offset_Y = bg.getBoundingClientRect().top;
+
+
+	var ctx = canvas.getContext('2d');
+
+	if(!ctx) return;
+
+	//圆对象
+	function Arc(x, y, r, speedx, speedy) {
+		this.x = x;
+		this.y = y;
+		this.r = r;
+		this.speedx = speedx;
+		this.speedy = speedy;
+		this.atRect = true;
+		this.color = colorList[randomNumber(colorList.length - 1)];
+	}
+	//移动
+	Arc.prototype.move = function() {
+		this.checkBorder();
+		this.x = this.x + this.speedx;
+		this.y = this.y + this.speedy;
+	}
+	//边界检测
+	Arc.prototype.checkBorder = function() {
+		var x_r = this.x - this.r;
+		var x_l = this.x + this.r;
+		var y_b = this.y - this.r;
+		var y_t = this.y + this.r;
+		if(x_r >= w || x_l <=0) {
+			this.atRect = false;
+		}
+		if(y_b >= h || y_t <=0) {
+			this.atRect = false;
+		}
+	}
+	//绘制
+	Arc.prototype.draw = function() {
+		ctx.beginPath();
+   		ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI);
+		ctx.fillStyle = this.color;
+		ctx.fill();
+	}
+
+	function drawLine(p1, p2) {
+		var d = Math.sqrt(Math.pow((p2.x - p1.x), 2) + Math.pow((p2.y - p1.y), 2));
+		if(d < pointDistance) {
+			ctx.beginPath();
+			ctx.moveTo(p1.x, p1.y);
+			ctx.lineTo(p2.x, p2.y);
+			ctx.closePath();
+			ctx.lineWidth = 0.5;
+			var grd = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
+			grd.addColorStop(0, p1.color);
+			grd.addColorStop(1, p2.color);
+			ctx.strokeStyle = grd;
+			ctx.stroke();
+		}
+	}
+
+	function randomNumber(num, val, plusOrminus ) {
+		plusOrminus = plusOrminus ? (plusOrminus > 0.5 ? 1 : -1) : 1;
+		var num = plusOrminus * Math.round(Math.random() * num + (val || 0));
+		return num;
+	}
+
+	function makeOneArc() {
+		return new Arc(randomNumber(w), randomNumber(h), 2, randomNumber(2, 3, Math.random()) / 10, randomNumber(2, 3, Math.random()) / 10);
+	}
+
+	function makeArcs(n) {
+		for(var i = 0; i < n; i++) {
+			arcArr.push(makeOneArc());
+		}
+	}
+
+	makeArcs(arcCount);
+
+	function drawAllArc() {
+		ctx.clearRect(0, 0, w, h);
+		for(var i = 0; i < arcArr.length; i++) {
+			arcArr[i].move();
+			if(!arcArr[i].atRect) {
+				arcArr[i] = null;
+				arcArr[i] = makeOneArc();
+			}
+			arcArr[i].draw();
+			for(var j = i; j < arcArr.length; j++) {
+				if(j === i) continue;
+				drawLine(arcArr[i], arcArr[j]);
+			}
+		}
+		requestAnimationFrame(drawAllArc);
+	}
+
+	requestAnimationFrame(drawAllArc);
+
+	canvas.onmousemove = function(e) {
+		mouseArc = null;
+		arcArr.splice(arcCount);
+		mouseArc =  new Arc(e.pageX - offset_X, e.pageY - offset_Y, 2, 0, 0);
+		arcArr.push(mouseArc);
+	}
+
+	canvas.onmouseleave = function() {
+		mouseArc = null;
+		arcArr.splice(arcCount);
+	}
+})();
+</script>
+</html>
